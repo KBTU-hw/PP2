@@ -46,13 +46,11 @@ RAW_PATH = Path(__file__).with_name("raw.txt")
 def money_to_float(s: str) -> float:
     return float(s.replace("\u00A0", " ").replace(" ", "").replace(",", "."))
 
-
 def extract_datetime(text: str) -> str | None:
     m = re.search(r"Время:\s*(\d{2}\.\d{2}\.\d{4})\s+(\d{2}:\d{2}:\d{2})", text)
     if not m:
         return None
     return f"{m.group(1)} {m.group(2)}"
-
 
 def extract_payment_method(text: str) -> str | None:
     if re.search(r"Банковская\s+карта", text, flags=re.IGNORECASE):
@@ -61,13 +59,11 @@ def extract_payment_method(text: str) -> str | None:
         return "CASH"
     return None
 
-
 def extract_total(text: str) -> float | None:
     m = re.search(r"ИТОГО:\s*\n\s*([\d ]+,\d{2})", text, flags=re.IGNORECASE)
     if not m:
         return None
     return money_to_float(m.group(1))
-
 
 def extract_items_europharma(text: str) -> list[dict[str, Any]]:
     """
