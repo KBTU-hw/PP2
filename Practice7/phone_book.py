@@ -2,16 +2,14 @@ import psycopg2
 import csv
 import re
 
-def add(s):
-    l=s.split()
-    a=l[0]
-    b=int(l[1])
-    cur.execute(f"INSERT INTO phone_book (name, phone) VALUES ('{a}', {b});")
-    conn.commit()
 def show():
     cur.execute("SELECT * FROM phone_book;")
     for i in cur.fetchall():
         print(i)
+def add(s):
+    l=s.split()
+    cur.execute(f"INSERT INTO phone_book (name, phone) VALUES ('{l[0]}', '{l[1]}');")
+    conn.commit()
 def search(s):
     if re.fullmatch(r"\d+", s):
         cur.execute(f"SELECT * FROM phone_book WHERE phone LIKE '{s}%';")
@@ -21,7 +19,7 @@ def search(s):
 def update(s):
     l=s.split()
     a=int(l[0])
-    if re.fullmatch(r"\d+", l[1]): cur.execute(f"UPDATE phone_book SET phone={int(l[1])} WHERE id={a}")
+    if re.fullmatch(r"\d+", l[1]): cur.execute(f"UPDATE phone_book SET phone='{l[1]}' WHERE id={a}")
     else: cur.execute(f"UPDATE phone_book SET name='{l[1]}' WHERE id={a}")
     conn.commit()
 def delete(s):
@@ -42,36 +40,27 @@ cur.execute("""
     CREATE TABLE IF NOT EXISTS phone_book (
     id SERIAL PRIMARY KEY,
     name VARCHAR(50),
-    phone INT
+    phone VARCHAR(20)
 );
-    TRUNCATE TABLE phone_book RESTART IDENTITY;
 """)
 
-with open(r"Practice7/contacts.csv", "r", encoding="utf-8") as file:
-    reader = csv.reader(file)
-    next(reader)
-    for row in reader:
-        name = row[0]
-        phone = int(row[1])
-        cur.execute(f"INSERT INTO phone_book (name, phone) VALUES ('{name}', {phone});")
-conn.commit()
+# with open(r"Practice7/contacts.csv", "r", encoding="utf-8") as file:
+#     reader = csv.reader(file)
+#     next(reader)
+#     for row in reader:
+#         name = row[0]
+#         phone = row[1]
+#         cur.execute(f"INSERT INTO phone_book (name, phone) VALUES ('{name}', '{phone}');")
+# conn.commit()
 
 n=int(input())
 for _ in range(n):
     i=input()
     if i=="show": show()
-    elif i=="add":
-        s=input()
-        add(s)
-    elif i=="search":
-        s=input()
-        search(s)
-    elif i=="update":
-        s=input()
-        update(s)
-    elif i=="delete":
-        s=input()
-        delete(s)
+    elif i=="add": add(input())
+    elif i=="search": search(input())
+    elif i=="update": update(input())
+    elif i=="delete": delete(input())
         
 cur.close()
 conn.close()
