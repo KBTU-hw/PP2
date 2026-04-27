@@ -1,0 +1,68 @@
+[
+  {
+    "id": 1,
+    "name": "Aibar",
+    "email": "sak@gmail.com",
+    "birthday": "2005-03-12",
+    "group": "Family",
+    "created_at": "2026-04-24T19:46:56.863064",
+    "phones": [
+      {
+        "phone_number": "87011111111",
+        "type": "mobile"
+      },
+      {
+        "phone_number": "87272222222",
+        "type": "home"
+      },
+      {
+        "phone_number": "87011111111",
+        "type": "mobile"
+      },
+      {
+        "phone_number": "87272222222",
+        "type": "home"
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Bobek",
+    "email": "bob@company.com",
+    "birthday": "2004-11-01",
+    "group": "Work",
+    "created_at": "2026-04-24T19:46:56.863064",
+    "phones": [
+      {
+        "phone_number": "87033333333",
+        "type": "work"
+      },
+      {
+        "phone_number": "87033333333",
+        "type": "work"
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "Legend",
+    "email": "legend@gmail.com",
+    "birthday": "2005-07-20",
+    "group": "Family",
+    "created_at": "2026-04-24T19:46:56.863064",
+    "phones": [
+      {
+        "phone_number": "87044444444",
+        "type": "mobile"
+      },
+      {
+        "phone_number": "77777",
+        "type": "home"
+      },
+      {
+        "phone_number": "87044444444",
+        "type": "mobile"
+      }
+    ]
+  }
+]

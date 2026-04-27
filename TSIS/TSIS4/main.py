@@ -1,187 +1,203 @@
+from pathlib import Path
 import pygame
-import json
-import os
-from config import *
-from db import db
-from game import GameState
-from ui import main_menu, username_screen, game_over_screen, leaderboard_screen, settings_screen
 
+from db import get_personal_best, get_top_scores, save_result, setup_database
+from game import SnakeGame
 
-# Initialize Pygame
+WIDTH, HEIGHT = 600, 400
+CELL = 20
 pygame.init()
-pygame.display.set_caption("Snake Game - TSIS4")
 
-# Create screen
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-clock = pygame.time.Clock()
-
-# Create fonts
-fonts = {
-    "title": pygame.font.Font(None, 56),
-    "button": pygame.font.Font(None, 32),
-    "small": pygame.font.Font(None, 24),
-}
-
-# Settings file path
-SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "settings.json")
+BASE = Path(__file__).resolve().parent
 
 
-def load_settings():
-    """Load settings from JSON file"""
-    if os.path.exists(SETTINGS_FILE):
-        try:
-            with open(SETTINGS_FILE, 'r') as f:
-                return json.load(f)
-        except:
-            return get_default_settings()
-    return get_default_settings()
+class Button:
+    def __init__(self, x, y, w, h, text, action):
+        self.rect = pygame.Rect(x, y, w, h)
+        self.text = text
+        self.action = action
+
+    def draw(self, screen, font):
+        hover = self.rect.collidepoint(pygame.mouse.get_pos())
+        pygame.draw.rect(screen, (120, 160, 255) if hover else (230, 234, 244), self.rect, border_radius=8)
+        pygame.draw.rect(screen, (20, 20, 20), self.rect, 2, border_radius=8)
+        txt = font.render(self.text, True, (20, 20, 20))
+        screen.blit(txt, txt.get_rect(center=self.rect.center))
+
+    def click(self, e):
+        return e.type == pygame.MOUSEBUTTONDOWN and e.button == 1 and self.rect.collidepoint(e.pos)
 
 
-def get_default_settings():
-    """Get default settings"""
-    return {
-        "grid": False,
-        "sound": False,
-        "snake_color": SNAKE_COLOR_DEFAULT,
-    }
+def main_menu(screen, fonts):
+    btns = [
+        Button(WIDTH // 2 - 140, 200, 280, 50, "Play", "play"),
+        Button(WIDTH // 2 - 140, 265, 280, 50, "Leaderboard", "leader"),
+        Button(WIDTH // 2 - 140, 330, 280, 50, "Quit", "quit"),
+    ]
+    while True:
+        screen.fill((240, 243, 252))
+        screen.blit(fonts["title"].render("TSIS4 Mini Snake", True, (20, 20, 20)), (WIDTH // 2 - 170, 90))
+        for b in btns:
+            b.draw(screen, fonts["button"])
+        pygame.display.flip()
+
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT:
+                return "quit"
+            for b in btns:
+                if b.click(e):
+                    return b.action
 
 
-def save_settings(settings):
-    """Save settings to JSON file"""
-    try:
-        with open(SETTINGS_FILE, 'w') as f:
-            json.dump(settings, f, indent=2)
-    except Exception as e:
-        print(f"Error saving settings: {e}")
+def username_screen(screen, fonts):
+    text = ""
+    start = Button(WIDTH // 2 - 140, 360, 280, 50, "Start", "start")
+    back = Button(WIDTH // 2 - 140, 425, 280, 50, "Back", "back")
+    while True:
+        screen.fill((240, 243, 252))
+        screen.blit(fonts["title"].render("Username", True, (20, 20, 20)), (WIDTH // 2 - 90, 120))
+        box = pygame.Rect(WIDTH // 2 - 170, 230, 340, 50)
+        pygame.draw.rect(screen, (255, 255, 255), box, border_radius=8)
+        pygame.draw.rect(screen, (20, 20, 20), box, 2, border_radius=8)
+        show = text if text else "Player"
+        screen.blit(fonts["button"].render(show, True, (20, 20, 20)), (box.x + 12, box.y + 10))
+        start.draw(screen, fonts["button"])
+        back.draw(screen, fonts["button"])
+        pygame.display.flip()
+
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT:
+                return "quit", None
+            if e.type == pygame.KEYDOWN:
+                if e.key == pygame.K_BACKSPACE:
+                    text = text[:-1]
+                elif e.key == pygame.K_RETURN:
+                    return "start", text.strip() or "Player"
+                elif e.unicode.isprintable() and len(text) < 18:
+                    text += e.unicode
+            if start.click(e):
+                return "start", text.strip() or "Player"
+            if back.click(e):
+                return "back", None
 
 
-def game_loop(username, settings):
-    """Main game loop"""
-    snake_color = tuple(settings.get("snake_color", SNAKE_COLOR_DEFAULT))
-    game = GameState(username, snake_color)
-    
-    # Get personal best
-    personal_best = db.get_player_best_score(username)
-    
-    show_grid = settings.get("grid", False)
+def leaderboard_screen(screen, fonts):
+    back = Button(WIDTH // 2 - 140, 540, 280, 50, "Back", "back")
+    rows = get_top_scores(10)
+    while True:
+        screen.fill((240, 243, 252))
+        screen.blit(fonts["title"].render("Top 10 Leaderboard", True, (20, 20, 20)), (WIDTH // 2 - 220, 70))
+        y = 130
+        for i, row in enumerate(rows, 1):
+            user, score, level, dt = row
+            date_str = dt.strftime("%Y-%m-%d") if dt else "-"
+            line = f"{i:>2}. {user:<12} score:{score:<5} level:{level:<3} {date_str}"
+            screen.blit(fonts["small"].render(line, True, (40, 40, 40)), (80, y))
+            y += 34
+        if not rows:
+            screen.blit(fonts["small"].render("No records yet", True, (40, 40, 40)), (80, 130))
+        back.draw(screen, fonts["button"])
+        pygame.display.flip()
+
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT:
+                return "quit"
+            if back.click(e):
+                return "back"
+
+
+def game_over_screen(screen, fonts, username, score, level):
+    best = get_personal_best(username)
+    retry = Button(WIDTH // 2 - 140, 430, 280, 50, "Retry", "retry")
+    menu = Button(WIDTH // 2 - 140, 495, 280, 50, "Main Menu", "menu")
+    while True:
+        screen.fill((240, 243, 252))
+        screen.blit(fonts["title"].render("Game Over", True, (20, 20, 20)), (WIDTH // 2 - 120, 95))
+        screen.blit(fonts["button"].render(f"Score: {score}", True, (20, 20, 20)), (WIDTH // 2 - 130, 200))
+        screen.blit(fonts["button"].render(f"Level: {level}", True, (20, 20, 20)), (WIDTH // 2 - 130, 245))
+        screen.blit(fonts["button"].render(f"Personal Best: {best}", True, (20, 20, 20)), (WIDTH // 2 - 130, 290))
+        retry.draw(screen, fonts["button"])
+        menu.draw(screen, fonts["button"])
+        pygame.display.flip()
+
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT:
+                return "quit"
+            if retry.click(e):
+                return "retry"
+            if menu.click(e):
+                return "menu"
+
+
+def run_game(screen, fonts, username):
+    game = SnakeGame(username)
+    clock = pygame.time.Clock()
 
     while not game.game_over:
-        # Handle events
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                return "quit"
-            
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    game.snake.change_direction((-1, 0))
-                elif event.key == pygame.K_RIGHT:
-                    game.snake.change_direction((1, 0))
-                elif event.key == pygame.K_UP:
-                    game.snake.change_direction((0, -1))
-                elif event.key == pygame.K_DOWN:
-                    game.snake.change_direction((0, 1))
-                elif event.key == pygame.K_ESCAPE:
-                    return "menu"
-                elif event.key == pygame.K_g:
-                    show_grid = not show_grid
-        
-        # Update game
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT:
+                return "quit", 0, 0
+            if e.type == pygame.KEYDOWN:
+                if e.key == pygame.K_LEFT:
+                    game.set_direction((-1, 0))
+                elif e.key == pygame.K_RIGHT:
+                    game.set_direction((1, 0))
+                elif e.key == pygame.K_UP:
+                    game.set_direction((0, -1))
+                elif e.key == pygame.K_DOWN:
+                    game.set_direction((0, 1))
+                elif e.key == pygame.K_ESCAPE:
+                    return "menu", game.score, game.level
+
         game.update()
-        
-        # Draw game
-        game.draw(screen, show_grid)
-        
-        # Draw personal best
-        font = pygame.font.Font(None, 24)
-        best_text = font.render(f"Personal Best: {personal_best}", True, (255, 255, 255))
-        screen.blit(best_text, (WIDTH - 220, 10))
-        
+        game.draw(screen, fonts["small"])
         pygame.display.flip()
-        clock.tick(FPS)
-    
-    # Save game session
-    player_id = db.get_or_create_player(username)
-    if player_id:
-        db.save_game_session(player_id, game.score, game.level)
-    
-    return "game_over", game
+        clock.tick(60)
+
+    save_result(username, game.score, game.level)
+    return "over", game.score, game.level
 
 
 def main():
-    """Main application loop"""
-    # Initialize database
-    db.connect()
-    db.create_tables()
-    
-    # Load settings
-    settings = load_settings()
-    
-    screen_state = "menu"
+    setup_database()
+
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption("TSIS4 Mini Snake")
+    fonts = {
+        "title": pygame.font.SysFont("arial", 46, bold=True),
+        "button": pygame.font.SysFont("arial", 30),
+        "small": pygame.font.SysFont("consolas", 22),
+    }
 
     while True:
-        if screen_state == "menu":
-            screen_state = main_menu(screen, fonts)
-        
-        elif screen_state == "play":
-            screen_state = username_screen(screen, fonts)
-        
-        elif screen_state == "start":
-            username = screen_state[1] if isinstance(screen_state, tuple) else "Player"
-            screen_state = username_screen(screen, fonts)
-        
-        elif screen_state == "quit":
+        action = main_menu(screen, fonts)
+        if action == "quit":
             break
-        
-        elif screen_state == "leaderboard":
-            # Fetch leaderboard from database
-            leaderboard_data = db.get_leaderboard(10)
-            result = leaderboard_screen(screen, fonts, leaderboard_data)
-            screen_state = "menu" if result == "back" else "quit"
-        
-        elif screen_state == "settings":
-            result, new_settings = settings_screen(screen, fonts, settings)
-            if result == "back":
-                settings = new_settings
-                save_settings(settings)
-            screen_state = "menu" if result != "quit" else "quit"
-        
-        elif isinstance(screen_state, tuple) and screen_state[0] == "start":
-            # Game loop
-            username = screen_state[1]
-            result = game_loop(username, settings)
-            
-            if isinstance(result, tuple) and result[0] == "game_over":
-                game = result[1]
-                personal_best = max(db.get_player_best_score(username), game.score)
-                screen_state = game_over_screen(screen, fonts, game.score, game.level, personal_best)
-            else:
-                screen_state = result
-        
-        elif isinstance(screen_state, str) and screen_state == "game_over":
-            # This shouldn't happen, but handle it
-            screen_state = "menu"
-        
-        else:
-            # Default handling for tuple returns from username_screen
-            if isinstance(screen_state, tuple):
-                action, username = screen_state
-                if action == "start":
-                    result = game_loop(username, settings)
-                    if isinstance(result, tuple) and result[0] == "game_over":
-                        game = result[1]
-                        personal_best = max(db.get_player_best_score(username), game.score)
-                        screen_state = game_over_screen(screen, fonts, game.score, game.level, personal_best)
-                    else:
-                        screen_state = result
-                elif action == "back":
-                    screen_state = "menu"
-                elif action == "quit":
-                    break
-            else:
-                screen_state = "menu"
-    
-    # Cleanup
-    db.disconnect()
+        if action == "leader":
+            if leaderboard_screen(screen, fonts) == "quit":
+                break
+            continue
+
+        a, username = username_screen(screen, fonts)
+        if a == "quit":
+            break
+        if a == "back":
+            continue
+
+        while True:
+            status, score, level = run_game(screen, fonts, username)
+            if status == "quit":
+                pygame.quit()
+                return
+            if status == "menu":
+                break
+            go = game_over_screen(screen, fonts, username, score, level)
+            if go == "quit":
+                pygame.quit()
+                return
+            if go == "menu":
+                break
+
     pygame.quit()
 
 
